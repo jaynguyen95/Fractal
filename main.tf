@@ -1,11 +1,14 @@
+# This used to declare the use of resources provided by AWS.
 provider "aws" {
   region = "${var.aws_region}"
 }
 
+# This defines a vpc and the cidr block it exists on.
 resource "aws_vpc" "fractal_vpc" {
   cidr_block = "${var.vpc_cidr}"
 }
 
+# This creates the public subnet in the vpc created above.
 data "aws_subnet" "public_subnet" {
   vpc_id     = "${aws_vpc.fractal_vpc.id}"
   cidr_block = "${var.public_cidr}"
@@ -15,6 +18,7 @@ data "aws_subnet" "public_subnet" {
   }
 }
 
+# This creates the private subnet in the vpc created above.
 data "aws_subnet" "private_subnet" {
   vpc_id     = "${aws_vpc.fractal_vpc.id}"
   cidr_block = "${var.private_cidr}"
@@ -24,6 +28,7 @@ data "aws_subnet" "private_subnet" {
   }
 }
 
+# This creates an instance with the given ami ID and configured within the private subnet and attached is the security group for the instance.
 resource "aws_instance" "test_instance" {
   ami = "ami-0274e11dced17bb5b"
   instance_type = "t2.micro"
@@ -35,8 +40,10 @@ resource "aws_instance" "test_instance" {
   }
 }
 
+# This is the elb fronting the instance.
 resource "aws_elb" "elb_service" {
     name = "test-instance-elb"
+    instances = ["${aws_instance.test_instance.id}"]
     security_groups = ["${aws_security_group.test_instance_sg.id}"]
     subnets = ["${data.aws_subnet.private_subnet.id}"]
     internal = "${var.elb_internal}"
@@ -48,7 +55,6 @@ resource "aws_elb" "elb_service" {
         target = "TCP:8443"
         interval = "30"
     }
-    instances = ["${aws_instance.test_instance.id}"]
     tags {
         Name = "${var.name}_elb"
     }
